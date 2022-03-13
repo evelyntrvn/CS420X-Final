@@ -54,7 +54,7 @@
           texture2D( state, ( gl_FragCoord.xy + vec2(x, y) ) / resolution ).g 
         );
     }
-  
+
     float laplaceA(){
         float sumA = 0.;
 
@@ -92,30 +92,19 @@
         float b = getB(0,0);
         float c = audioData/255.;
 
-        //if (audioData < 5.){ 
-        //  c = 0.065; 
-        //}else{
-        //  c = 0.03;
-       // }
-
-        float newDa = dA ;
-        float newDb = dB + c;
-
         float nextA = a + 
-                    (dA * laplaceA() * size 
+                    (dA * laplaceA() * 1. 
                     - a * b * b 
                     + feed * ( 1. - a )) ;
         
         float nextB = b + 
-                    (c * laplaceB() * size
+                    (dB * laplaceB() * 1.
                     + a * b * b 
                     - (kill + feed) * b);
 
-        vec3 next = vec3(nextA, nextB, audioData/255.);
+        vec3 next = vec3(nextA, nextB, c);
         
         gl_FragColor = vec4(next, 1.);
-
-        
     }
   </script>
 
@@ -141,14 +130,16 @@
     uTime, uSimulationState,
     textureBack, textureFront,
     dimensions = { width: null, height: null },
-    dA, dB, feed, k, size, audio, audioData, bufferLength, analyser,
+    dA, dB, feed, k, size, audio, audioData,
+    bufferLength, analyser, audioContext, audioElement,
     playing = false, mic = false
 
   window.onload = function () {
     navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(function (stream) {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const audioElement = document.querySelector('audio');
-      const track = audioContext.createMediaStreamSource(stream);
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      audioElement = document.querySelector('audio');
+      //const track = audioContext.createMediaStreamSource(stream);
+      const track = audioContext.createMediaElementSource(audioElement);
 
       analyser = audioContext.createAnalyser()
       analyser.fftSize = 256
@@ -158,7 +149,7 @@
       console.log(bufferLength)
 
       track.connect(analyser);
-      //analyser.connect(audioContext.destination)
+      analyser.connect(audioContext.destination)
 
       analyser.getByteFrequencyData(audio)
       console.log(audio)
@@ -170,15 +161,11 @@
       }, false);
     });
 
-
-
-
     const pane = new Tweakpane.Pane();
     const PARAMS = {
       dA: 1,
       dB: 0.1,
       feed: 0.055,
-      kill: 0.065,
       size: 0.5
     }
 
@@ -198,10 +185,6 @@
       PARAMS, 'feed',
       { min: 0, max: 0.1 }
     )
-    const killInput = pane.addInput(
-      PARAMS, 'kill',
-      { min: 0, max: 0.1 }
-    )
     const sizeInput = pane.addInput(
       PARAMS, 'size',
       { min: 0, max: 1 }
@@ -217,16 +200,14 @@
     feedInput.on('change', function (ev) {
       feed = ev.value
     })
-    killInput.on('change', function (ev) {
-      kill = ev.value
-    })
     sizeInput.on('change', function (ev) {
       size = ev.value
     })
+
     playMusic.on('click', function () {
-      if (audioContext.state === 'suspended') {
-        audioContext.resume();
-      }
+      // if (audioContext.state === 'suspended') {
+      //   audioContext.resume();
+      // }
 
       // play or pause track depending on state
       if (playing === false) {
@@ -241,8 +222,8 @@
     dA = PARAMS['dA']
     dB = PARAMS['dB']
     feed = PARAMS['feed']
-    kill = PARAMS['kill']
     size = PARAMS['size']
+    kill = 0
 
     const canvas = document.getElementById('gl')
     gl = canvas.getContext('webgl')
@@ -281,8 +262,8 @@
 
     for (i = 0; i < width; i++) {
       for (j = 0; j < height; j++) {
-        if (i > width / 2.2 && j > height / 2.2
-          && i < width - (width / 2.2) && j < height - (height / 2.2)) {
+        if (i > width / 3 && j > height / 3
+          && i < width - (width / 3) && j < height - (height / 3)) {
           poke(i, j, 0, 255, textureBack)
         }
         else {
@@ -291,6 +272,7 @@
       }
     }
     console.log("poked")
+    console.log(0.065 + (0 - 0) * (0.07 - 0.065) / (255 - 0))
 
   }
 
@@ -431,15 +413,15 @@
 
     if (mic === true) {
       analyser.getByteFrequencyData(audio)
-
+      let sum = 0
       for (var i = 0; i < bufferLength; i++) {
-        audioData = audio[i];
-
-        gl.uniform1f(uAudio, audioData)
-        console.log(audioData)
+        sum += audio[i];
       }
+      audioData = sum / bufferLength
+      kill = getK(audioData)
+      //console.log(kill)
     }
-
+   
     // update time on CPU and GPU
     time++
     gl.uniform1f(uTime, time)
@@ -448,6 +430,8 @@
     gl.uniform1f(uFeed, feed)
     gl.uniform1f(uKill, kill)
     gl.uniform1f(uSize, size)
+    gl.uniform1f(uAudio, audioData)
+
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
     // use the framebuffer to write to our texFront texture
@@ -483,6 +467,14 @@
     // put simulation on screen
     gl.drawArrays(gl.TRIANGLES, 0, 6)
 
+  }
+
+  function map(value, min1, max1, min2, max2) {
+    return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
+  }
+
+  function getK(c) {
+    return map(c, 0., 255., 0.045, 0.1);
   }
 
 </script>
