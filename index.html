@@ -112,12 +112,12 @@
         float c = audioData/255.;
 
         float nextA = a + 
-                    (dA * laplaceA() * 1. 
+                    (dA * laplaceA() * size 
                     - a * b * b 
                     + feed * ( 1. - a )) ;
         
         float nextB = b + 
-                    (dB * laplaceB() * 1.
+                    (dB * laplaceB() * size
                     + a * b * b 
                     - (kill + feed) * b);
 
