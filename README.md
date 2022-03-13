@@ -1,5 +1,6 @@
 # CS420X-Final
 [Video](https://youtu.be/Z5hxwZ-ZOMU)
+[Link](https://evelyntrvn.github.io/CS420X-Final/)
 
 For this project, it took me a while to figure out what I could do in the time that I had. I first played around with a couple of other simulations such as the fluid simulation but figured given my time frame, I would continue with my A3 project for the diffusion-reaction simulation. At first, I played around with video input but was not able to figure out how to implement it with the current textureback and texturefront. Because of this, I started to look at how audio input could impact the simulation.
 
